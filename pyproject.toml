@@ -29,24 +29,27 @@ quote-style = "double"
 
 [project]
 name = "bbombsbot"
-version = "2.4.2"
+version = "2.4.3"
 description = "Experimental Discord bot written in Python with Hikari."
 authors = [{name = "BBombs"}]
 license = "GNU GPL-3.0"
 readme = "README.md"
 package-mode = false
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "hikari (==2.1.0)",
+    "hikari-lightbulb (~=2.3.5)",
+    "asyncpg (~=0.30.0)",
+    "psutil (~=5.9.8)",
+    "aiofiles (>=24.1.0,<25.0.0)",
+    "uvloop (==0.19.0)",
+    "hikari-miru (~=4.2.0)",
+    "levenshtein (~=0.26.1)",
+]
+optional-dependencies = { ruff = [ "ruff~=0.9.3" ] }
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.13"
-hikari = "2.1.0"
-hikari-lightbulb = "~=2.3.5"
-asyncpg = "~=0.29.0"
-psutil = "^5.9.6"
-aiofiles = "^23.2.1"
-uvloop = {version="0.19.0", platform="linux"}
-hikari-miru = "~=4.1.1"
-levenshtein = "^0.25.1"
-ruff = "^0.9.3"
+uvloop = { platform="linux" }
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import typing as t
+from abc import ABC
 
 import hikari
 import hikari.errors
@@ -15,8 +16,8 @@ from src.static import *
 __all__ = ["BBombsBotContext", "BBombsBotPrefixContext", "BBombsBotSlashContext"]
 
 
-class BBombsBotContext(lightbulb.Context):
-    """BBombsBot base context object."""
+class BBombsBotContext(lightbulb.Context, ABC):
+    """BBombsBot base context object, abstract class."""
 
     @property
     def app(self) -> BBombsBot:
@@ -129,7 +130,7 @@ class BBombsBotContext(lightbulb.Context):
         timeout : float, optional
             Timeout for confirmation prompt, defaults to 120.
         edit : bool
-            Whether the original response should be edited.
+            Whether the original response should be edited, defaults to False.
         *args : Any
             Arguments passed to the confirmation response.
         **kwargs
@@ -155,7 +156,7 @@ class BBombsBotContext(lightbulb.Context):
         return view.value
 
 
-class BBombsBotApplicationContext(BBombsBotContext, lightbulb.ApplicationContext):
+class BBombsBotApplicationContext(BBombsBotContext, lightbulb.ApplicationContext, ABC):
     """BBombsBot ApplicationContext object."""
 
 

@@ -26,7 +26,7 @@ def has_permissions(
     perms : hikari.Permissions
         The permissions to check for.
     strict : bool
-        Wether the member must poses all or at least one of the permissions.
+        Whether the member must poses all or at least one of the permissions.
         Defaults to True.
 
     """
@@ -47,7 +47,16 @@ def has_permissions(
 
 
 def higher_role(member: hikari.Member, bot: hikari.Member) -> bool:
-    """Will return true if the members highest role is higher than the bots."""
+    """Will return true if the members highest role is higher than the bots.
+
+    Parameters
+    ----------
+    member : hikari.Member
+        The member to check.
+    bot : hikari.Member
+        The bot member for the relevant server.
+
+    """
     member_role = member.get_top_role()
     bot_role = bot.get_top_role()
     assert member_role is not None
@@ -57,7 +66,16 @@ def higher_role(member: hikari.Member, bot: hikari.Member) -> bool:
 
 
 def can_mod(member: hikari.Member, bot: hikari.Member) -> bool:
-    """Will return true if the bot can moderate the member."""
+    """Will return true if the bot can moderate the member.
+
+    Parameters
+    ----------
+    member : hikari.Member
+        The member to check.
+    bot : hikari.Member
+        The bot member for the relevant server.
+
+    """
     guild = member.get_guild()
 
     if guild is None:
@@ -95,9 +113,8 @@ async def domain_in_list(url: str, path: str) -> bool:
             domain = match.group(2)
 
         async with aiofiles.open(path, "r", encoding="utf-8") as list:
-            async for line in list:
-                line = line.strip()
-                if line == domain:
+            async for url in list:
+                if url.strip() == domain:
                     return True
 
     return False
@@ -106,10 +123,10 @@ async def domain_in_list(url: str, path: str) -> bool:
 async def get_app_version(app: BBombsBot) -> str:
     """Will return the version of BBombsBot included in project file."""
     path = os.path.join(app.base_dir, "pyproject.toml")
-    version: str
+    version: str = "2.0.0"
 
-    async with aiofiles.open(path, "r", encoding="utf-8") as list:
-        async for line in list:
+    async with aiofiles.open(path, "r", encoding="utf-8") as file:
+        async for line in file:
             if line.startswith("version"):
                 version = line[11:-2]
                 break

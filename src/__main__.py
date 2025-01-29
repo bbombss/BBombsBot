@@ -4,8 +4,8 @@ import sys
 
 from src.models import BBombsBot
 
-if sys.version_info[0] != 3 or sys.version_info[1] < 11:
-    raise RuntimeError("Incompatable python version, must be 3.11 or greater.")
+if sys.version_info[0] != 3 or sys.version_info[1] < 12:
+    raise RuntimeError("Incompatible python version, must be 3.12 or later.")
 
 try:
     from .config import Config

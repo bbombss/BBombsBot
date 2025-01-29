@@ -82,7 +82,7 @@ class AutoMod:
         member : hikari.Member
             The member to check.
         bot : hikari.Member
-            The member for BBombsBot.
+            The bot member for the relevant server.
 
         """
         if not isinstance(member, hikari.Member):
@@ -125,7 +125,7 @@ class AutoMod:
     async def find_message_spam(self, message: hikari.PartialMessage) -> bool:
         """Check for common types of spam.
 
-        Return False if the check fails otherwise True.
+        Returns False if the message is offending otherwise True
         """
         MESSAGE_SPAM_RATELIMITER.add_message(message)
         if MESSAGE_SPAM_RATELIMITER.is_rate_limited(message):
@@ -140,7 +140,7 @@ class AutoMod:
     async def find_duplicate_spam(self, message: hikari.PartialMessage) -> bool:
         """Check for duplicate message spamming.
 
-        Returns False if the check fails otherwise True.
+        Returns False if the message is offending otherwise True
         """
         if not message.content:
             return True
@@ -168,7 +168,7 @@ class AutoMod:
     async def find_invite_spam(self, message: hikari.PartialMessage) -> bool:
         """Check for messages with invites being spammed.
 
-        Return False if the check fails otherwise True.
+        Returns False if the message is offending otherwise True
         """
         if message.content and INVITE_REGEX.findall(message.content.lower()):
             INVITE_SPAM_RATELIMITER.add_message(message)
@@ -185,7 +185,7 @@ class AutoMod:
     async def find_link_spam(self, message: hikari.PartialMessage) -> bool:
         """Check for messages with links being spammed.
 
-        Return False if the check fails otherwise True.
+        Returns False if the message is offending otherwise True
         """
         if message.content and URL_REGEX.findall(message.content.lower()):
             LINK_SPAM_RATELIMITER.add_message(message)
@@ -202,7 +202,7 @@ class AutoMod:
     async def find_attach_spam(self, message: hikari.PartialMessage) -> bool:
         """Check for messages with attachments being spammed.
 
-        Return False if the check fails otherwise True.
+        Returns False if the message is offending otherwise True
         """
         if message.attachments:
             ATTACHMENT_SPAM_RATELIMITER.add_message(message)
@@ -219,7 +219,7 @@ class AutoMod:
     async def find_mention_spam(self, message: hikari.PartialMessage) -> bool:
         """Check for messages with mentions being spammed.
 
-        Return False if the check fails otherwise True.
+        Returns False if the message is offending otherwise True
         """
         assert message.author
 
@@ -242,7 +242,7 @@ class AutoMod:
     async def block_invites(self, message: hikari.PartialMessage) -> bool:
         """Check for messages with invite links.
 
-        Return False if the check fails otherwise True.
+        Returns False if the message is offending otherwise True
         """
         if BLOCK_INVITES and message.content and INVITE_REGEX.findall(message.content):
             reason = "invite links are not allowed."
@@ -256,7 +256,7 @@ class AutoMod:
     async def block_malicious_links(self, message: hikari.PartialMessage) -> bool:
         """Check to see if a message contains malicious links.
 
-        Return False if the check fails otherwise True.
+        Returns False if the message is offending otherwise True
         """
         if not message.content or not URL_REGEX.findall(message.content.lower()):
             return True
@@ -300,7 +300,7 @@ class AutoMod:
     async def block_fake_links(self, message: hikari.PartialMessage) -> bool:
         """Check for messages with hyperlinks where the hyperlink text is also an url.
 
-        Return False if the check fails otherwise True.
+        Returns False if the message is offending otherwise True
         """
         if BLOCK_FAKE_URL and message.content and FAKE_URL_REGEX.findall(message.content):
             reason = "hyperlink contains link as text string."
@@ -314,7 +314,7 @@ class AutoMod:
     async def limit_mentions(self, message: hikari.PartialMessage) -> bool:
         """Check for messages with lots of mentions of different users.
 
-        Return False if the check fails otherwise True.
+        Returns False if the message is offending otherwise True
         """
         assert message.author
 
@@ -336,7 +336,14 @@ class AutoMod:
     async def check(
         self, event: hikari.GuildMessageUpdateEvent | hikari.GuildMessageCreateEvent
     ) -> None:
-        """Run automod checks on created or updated messages."""
+        """Run automod checks on created or updated messages.
+
+        Parameters
+        ----------
+        event : hikari.GuildMessageUpdateEvent | hikari.GuildMessageCreateEvent
+            The message event to check for offences.
+
+        """
         message = event.message
 
         if not message.author:
