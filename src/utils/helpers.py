@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import typing as t
 
 import aiofiles
@@ -9,7 +8,7 @@ import hikari.guilds
 import lightbulb
 
 if t.TYPE_CHECKING:
-    from src.models.bot import BBombsBot
+    pass
 
 from src.static.re import *
 
@@ -118,20 +117,6 @@ async def domain_in_list(url: str, path: str) -> bool:
                     return True
 
     return False
-
-
-async def get_app_version(app: BBombsBot) -> str:
-    """Will return the version of BBombsBot included in project file."""
-    path = os.path.join(app.base_dir, "pyproject.toml")
-    version: str = "2.0.0"
-
-    async with aiofiles.open(path, "r", encoding="utf-8") as file:
-        async for line in file:
-            if line.startswith("version"):
-                version = line[11:-2]
-                break
-
-    return version
 
 
 # Copyright (C) 2025 BBombs

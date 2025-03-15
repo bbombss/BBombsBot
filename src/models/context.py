@@ -10,7 +10,7 @@ import lightbulb
 if t.TYPE_CHECKING:
     from src.models.bot import BBombsBot
 
-from src.models.views import ConfirmationView
+from src.models.views import AuthorOnlyNavView, ConfirmationView
 from src.static import *
 
 __all__ = ["BBombsBotContext", "BBombsBotPrefixContext", "BBombsBotSlashContext"]
@@ -41,11 +41,11 @@ class BBombsBotContext(lightbulb.Context, ABC):
         ----------
         content : str
             Content to be passed to the description field of the embed.
-        title : str, optional
+        title : str
             Title to be passed to the title field of the embed, defaults to None.
-        edit : bool, optional
+        edit : bool
             Whether an original response should be edited.
-        ephemeral : bool, optional
+        ephemeral : bool
             Whether the message should have the ephemeral flag, defaults to False.
 
         Returns
@@ -82,11 +82,11 @@ class BBombsBotContext(lightbulb.Context, ABC):
         ----------
         content : str
             Content to be passed to the description field of the embed.
-        title : str, optional
+        title : str
             Title to be passed to the title field of the embed, defaults to None.
-        edit : bool, optional
+        edit : bool
             Whether an original response should be edited, defaults to False.
-        ephemeral : bool, optional
+        ephemeral : bool
             Whether the message should have the ephemeral flag, defaults to False.
 
         Returns
@@ -123,11 +123,11 @@ class BBombsBotContext(lightbulb.Context, ABC):
 
         Parameters
         ----------
-        confirm_msg : dict[str, Any], optional
+        confirm_msg : dict[str, Any]
             Keyword arguments to be passed to the confirmation response, defaults to None.
-        cancel_msg : dict[str, Any], optional
+        cancel_msg : dict[str, Any]
             Keyword arguments to be passed to the cancel response, defaults to None.
-        timeout : float, optional
+        timeout : float
             Timeout for confirmation prompt, defaults to 120.
         edit : bool
             Whether the original response should be edited, defaults to False.
@@ -154,6 +154,50 @@ class BBombsBotContext(lightbulb.Context, ABC):
         self.app.miru_client.start_view(view, bind_to=message)
         await view.wait()
         return view.value
+
+    async def respond_paginated(
+        self, pages: list[str], timeout: float = 360, edit: bool = False, **kwargs
+    ) -> None:
+        """Generate a paginated menu as embeds.
+
+        Parameters
+        ----------
+        pages : list[str]
+            List of pages for the paginator, only supports strings.
+        timeout : float
+            Timeout for confirmation prompt, defaults to 360.
+        edit : bool
+            Whether the original response should be edited, defaults to False.
+        **kwargs
+            Keyword args to be passed to each paginated embed.
+
+        """
+        current_page = 1
+        page_count = len(pages)
+        embed_pages: list[hikari.Embed] = []
+        message: hikari.Message | None = None
+
+        for page in pages:
+            embed = hikari.Embed(description=page, **kwargs)
+            embed.set_footer(f"Page {current_page} of {page_count}")
+            embed_pages.append(embed)
+            current_page += 1
+
+        if len(embed_pages) < 2:
+            raise ValueError("Paginator must have more than one page.")
+
+        navigator = AuthorOnlyNavView(self, embed_pages, timeout=timeout)
+
+        if edit:
+            message = await self.edit_last_response(
+                "", embeds=[embed_pages[0]], component=navigator
+            )
+        if message is None:
+            resp = await self.respond("", embeds=[embed_pages[0]], components=navigator)
+            message = await resp.message()
+
+        self.app.miru_client.start_view(navigator, bind_to=message)
+        await navigator.wait()
 
 
 class BBombsBotApplicationContext(BBombsBotContext, lightbulb.ApplicationContext, ABC):

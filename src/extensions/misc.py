@@ -7,11 +7,10 @@ import psutil
 
 from src.models import BBombsBot, BBombsBotPlugin, BBombsBotSlashContext
 from src.static.const import *
-from src.utils import get_app_version
 
 misc = BBombsBotPlugin("misc")
 
-psutil.cpu_percent()
+psutil.cpu_percent(interval=1)
 
 
 # Eventually will be a private prefix command
@@ -30,7 +29,6 @@ async def bot_info(ctx: BBombsBotSlashContext) -> None:
     me = ctx.app.get_me()
     assert me is not None
 
-    version = await get_app_version(ctx.app)
     process = psutil.Process()
     gateway_latency = f"{ctx.app.heartbeat_latency * 1000:,.0f}ms"
 
@@ -38,7 +36,7 @@ async def bot_info(ctx: BBombsBotSlashContext) -> None:
         "",
         embed=hikari.Embed(
             title=f"⌛️ {me.username} Info",
-            description=f"""Version: **{version}**
+            description=f"""Version: **{ctx.app.version}**
 Developer: **BBombs**
 Server Count: **{len(ctx.app.cache.get_guilds_view())}**
 Uptime: **{tdelta_str[0]} hours, {tdelta_str[1]} minutes**
@@ -50,7 +48,11 @@ Source: [Click here](https://github.com/bbombss/bbombsbot)""",
             name="Latency",
             value=f"Gateway: {gateway_latency}\nREST: {(end - start) / 1000000:,.0f}ms",
         )
-        .add_field(name="CPU Use", value=f"{round(psutil.cpu_percent())}%", inline=True)
+        .add_field(
+            name="CPU Use",
+            value=f"{round(psutil.cpu_percent(interval=None))}%",
+            inline=True,
+        )
         .add_field(
             name="Memory Use",
             value=f"{round(process.memory_info().vms / 1048576)}MB",

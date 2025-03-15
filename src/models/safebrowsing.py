@@ -28,10 +28,10 @@ class SafeBrowsingResult:
             The requested url.
         status : str
             Status of requested url, safe or unsafe.
-        type : str, optional
-            Type threat the url poses.
-        cache_duration : float, optional
-            The amount of time the url must be considered unsafe.
+        type : str | None
+            Type threat the url poses, defaults to None.
+        cache_duration : float | None
+            The amount of time the url must be considered unsafe, defaults to None.
 
         """
         self.url: str = url
@@ -78,6 +78,7 @@ class SafebrowsingClient:
         self._cache: SafeBrowsingCache = SafeBrowsingCache()
         self._queue: asyncio.Queue = asyncio.Queue()
         self._batch_size: int = 5
+        self._event = asyncio.Event()
 
         # Start a background task to process URLs in batches
         self._task: asyncio.Task[t.Any] = asyncio.create_task(self._run_queue())
@@ -100,8 +101,10 @@ class SafebrowsingClient:
             if self._cache.get(url) is None:
                 await self._queue.put(url)
 
+        # Make sure all urls have results
         while any(self._cache.get(url) is None for url in urls):
-            await asyncio.sleep(0.1)
+            # Wait for cache update
+            await self._event.wait()
 
         return [self._cache.get(url) for url in urls]  # type: ignore
 
@@ -114,6 +117,7 @@ class SafebrowsingClient:
         while True:
             urls = [await self._queue.get()]
 
+            # Get as many pending urls from queue as possible
             while len(urls) < self._batch_size and not self._queue.empty():
                 urls.append(self._queue.get_nowait())
 
@@ -121,6 +125,8 @@ class SafebrowsingClient:
 
             for result in results.values():
                 self._cache.set(result.url, result)
+                self._event.set()
+                self._event.clear()
 
     async def _lookup_urls(self, urls: list[str]) -> dict[str, SafeBrowsingResult]:
         response = await self._request_api(urls)

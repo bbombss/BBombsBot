@@ -1,11 +1,86 @@
+import asyncio
+import traceback
+from contextlib import redirect_stdout
+from io import StringIO
+from textwrap import indent
+from time import perf_counter_ns
+
 import hikari
 import lightbulb
 
-from src.models import BBombsBot, BBombsBotPlugin, BBombsBotPrefixContext
+from src.models import (
+    BBombsBot,
+    BBombsBotPlugin,
+    BBombsBotPrefixContext,
+)
 from src.static import *
 
 admin = BBombsBotPlugin("admin")
 admin.add_checks(lightbulb.owner_only)
+
+
+async def respond_paginated(
+    ctx: BBombsBotPrefixContext,
+    content: str,
+    prefix: str = "",
+    suffix: str = "",
+    **kwargs,
+) -> None:
+    """Responds with interactable paginator.
+
+    Parameters
+    ----------
+    ctx : BBombsBotPrefixContext
+        Context for this response.
+    content : str
+        The text to be paginated, if necessary.
+    prefix : str
+        Prefix to be added to beginning of each page, defaults to "".
+    suffix : str
+        Suffix to be added to end of each page, defaults to "".
+    **kwargs
+        Keywords args to be passed to generated embed(s).
+
+    """
+    if "colour" not in kwargs:
+        kwargs["colour"] = DEFAULT_EMBED_COLOUR
+
+    if not len(content) > 2000:
+        embed = hikari.Embed(description=f"{prefix}{content}{suffix}", **kwargs)
+        await ctx.edit_last_response("", embed=embed)
+        return
+
+    paginator = lightbulb.utils.StringPaginator(
+        prefix=prefix, suffix=suffix, max_chars=2000
+    )
+
+    for line in content.split("\n"):
+        paginator.add_line(line)
+
+    pages = list(paginator.build_pages())
+
+    await ctx.respond_paginated(pages, edit=True, **kwargs)
+
+
+async def handle_exception(ctx, error: Exception) -> None:
+    """Will format exception and respond to original context.
+
+    Parameters
+    ----------
+    ctx : BBombsBotPrefixContext
+        Context for this response.
+    error : Exception
+        The exception to handle
+
+    """
+    title = f"{FAIL_EMOJI} {error.__class__.__name__}: {error}"
+    content = "\n".join(
+        traceback.format_exception(type(error), error, error.__traceback__)
+    )
+
+    await respond_paginated(
+        ctx, content, "```py\n", "```", title=title, colour=FAIL_EMBED_COLOUR
+    )
 
 
 @admin.command
@@ -68,8 +143,70 @@ async def eval_sql(ctx: BBombsBotPrefixContext, code: str) -> None:
 
     output = await ctx.app.db.execute(sql)
     await ctx.respond_with_success(
-        f"**SQL command executed successfully:**\n\n```{output}```", edit=True
+        f"**SQL command executed:**\n\n```{output}```", edit=True
     )
+
+
+@admin.command
+@lightbulb.option("code", "Code to run.", modifier=lightbulb.OptionModifier.CONSUME_REST)
+@lightbulb.command("eval", "Evaluate python code.", pass_options=True)
+@lightbulb.implements(lightbulb.PrefixCommand)
+async def eval_python(ctx: BBombsBotPrefixContext, code: str) -> None:
+    await ctx.wait()
+
+    globals_env = {
+        "ctx": ctx,
+        "app": ctx.app,
+        "guild": ctx.get_guild(),
+        "channel": ctx.get_channel(),
+        "author": ctx.author,
+        "message": ctx.event.message,
+    }
+
+    code = code.replace("```py", "").replace("`", "").strip()
+
+    to_eval = f"async def foo():\n{indent(code, ' ')}"
+
+    try:
+        exec(to_eval, globals_env)
+
+    except Exception as error:
+        await handle_exception(ctx, error)
+        return
+
+    foo = globals_env["foo"]
+
+    f = StringIO()
+    try:
+        with redirect_stdout(f):
+            exec_start = perf_counter_ns()
+            try:
+                await asyncio.wait_for(foo(), timeout=5)
+            except asyncio.TimeoutError:
+                await ctx.respond_with_failure("Execution timed out.", edit=True)
+                return
+            exec_end = perf_counter_ns()
+
+    except Exception as error:
+        await handle_exception(ctx, error)
+        return
+
+    result = f.getvalue()
+    exec_time = f"{(exec_end - exec_start) / 1000000:,.2f}ms"
+
+    if result:
+        await respond_paginated(
+            ctx,
+            result,
+            "```py\n",
+            "```",
+            title=f"{SUCCESS_EMOJI} Evaluated successfully ({exec_time})",
+            colour=SUCCESS_EMBED_COLOUR,
+        )
+    else:
+        await ctx.respond_with_success(
+            f"**Evaluated successfully** ({exec_time})", edit=True
+        )
 
 
 @admin.command()

@@ -1,9 +1,11 @@
 import datetime
 import logging
 import os
+import tomllib
 import typing as t
 from pathlib import Path
 
+import aiofiles
 import hikari
 import lightbulb
 import miru
@@ -78,6 +80,7 @@ class BBombsBot(lightbulb.BotApp):
         self._base_dir = str(Path(os.path.abspath(__file__)).parents[2])
         self._debug_mode = config.DEBUG_MODE
         self._startup_guilds: list = []
+        self._version: str
 
         self._db = Database(self)
         self._miru_client = miru.Client(self)
@@ -87,6 +90,16 @@ class BBombsBot(lightbulb.BotApp):
     def is_started(self) -> bool:
         """A boolean based on whether the bot has started."""
         return self._bot_started
+
+    @property
+    def version(self) -> str:
+        """Returns the running version of BBombsBot."""
+        if self._version is None:
+            raise ApplicationStateError(
+                "App version is unavailable until bot has started."
+            )
+
+        return self._version
 
     @property
     def base_dir(self) -> str:
@@ -181,6 +194,14 @@ class BBombsBot(lightbulb.BotApp):
         user = self.get_me()
         if user:
             self._user_id = user.id
+
+        toml_path = os.path.join(self.base_dir, "pyproject.toml")
+        version: str = "2.0.0"
+
+        async with aiofiles.open(toml_path, "rb") as file:
+            toml_data = await file.read()
+            toml = tomllib.loads(toml_data.decode("utf-8"))
+            self._version = toml.get("project", {}).get("version", version)
 
         self._auto_mod = AutoMod(self)
 
