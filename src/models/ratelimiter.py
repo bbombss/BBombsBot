@@ -106,9 +106,7 @@ class RateLimiterBucket(abc.ABC):
 
     def _get_ratelimiter(self, ctx: RateLimiterContext) -> RateLimiter:
         """Get the RateLimiter for this context or create one if there is not one."""
-        return self._rate_limiters.setdefault(
-            self._get_key(ctx), RateLimiter.get_instance(self)
-        )
+        return self._rate_limiters.setdefault(self._get_key(ctx), RateLimiter.get_instance(self))
 
     def add(self, ctx: RateLimiterContext) -> None:
         """Add a request to the queue for this context and start the ratelimiter."""
@@ -171,9 +169,7 @@ class MessageRateLimiter(RateLimiterBucket):
         """Add a message to this context's queue and start the ratelimiter."""
         self.add(ctx)
         if self.message_queue_size > 0:
-            queue = self._message_queue.setdefault(
-                self._get_key(ctx), deque(maxlen=self.message_queue_size)
-            )
+            queue = self._message_queue.setdefault(self._get_key(ctx), deque(maxlen=self.message_queue_size))
             queue.append(ctx.id)
 
     def get_messages(self, ctx: hikari.PartialMessage) -> list[hikari.Snowflake] | None:

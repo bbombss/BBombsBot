@@ -15,6 +15,7 @@ from src.models.automod import AutoMod
 from src.models.context import *
 from src.models.database import Database
 from src.models.errors import ApplicationStateError
+from src.models.moderator import Moderator
 from src.static import DEFAULT_EMBED_COLOUR
 
 logger = logging.getLogger(__name__)
@@ -35,10 +36,7 @@ class BBombsBot(lightbulb.BotApp):
 
         token = config.TOKEN
 
-        if config.DEBUG_MODE and config.DEBUG_GUILD_ID:
-            default_enabled_guilds = [config.DEBUG_GUILD_ID]
-        else:
-            default_enabled_guilds = []
+        default_enabled_guilds = [config.DEBUG_GUILD_ID] if config.DEBUG_MODE and config.DEBUG_GUILD_ID else []
 
         cache_config = hikari.impl.CacheSettings(
             components=hikari.api.CacheComponents.DM_CHANNEL_IDS
@@ -85,6 +83,7 @@ class BBombsBot(lightbulb.BotApp):
         self._db = Database(self)
         self._miru_client = miru.Client(self)
         self._auto_mod: AutoMod
+        self._mod = Moderator(self)
 
     @property
     def is_started(self) -> bool:
@@ -95,9 +94,7 @@ class BBombsBot(lightbulb.BotApp):
     def version(self) -> str:
         """Returns the running version of BBombsBot."""
         if self._version is None:
-            raise ApplicationStateError(
-                "App version is unavailable until bot has started."
-            )
+            raise ApplicationStateError("App version is unavailable until bot has started.")
 
         return self._version
 
@@ -115,9 +112,7 @@ class BBombsBot(lightbulb.BotApp):
     def user_id(self) -> hikari.Snowflake:
         """The bots user's discord user id."""
         if self._user_id is None:
-            raise ApplicationStateError(
-                "Bot user_id is unavailable until bot has started"
-            )
+            raise ApplicationStateError("Bot user_id is unavailable until bot has started")
 
         return self._user_id
 
@@ -125,9 +120,7 @@ class BBombsBot(lightbulb.BotApp):
     def start_time(self) -> datetime.datetime:
         """The time at which the bot started."""
         if self._start_time is None:
-            raise ApplicationStateError(
-                "Bot start_time is unavailable until bot has started"
-            )
+            raise ApplicationStateError("Bot start_time is unavailable until bot has started")
 
         return self._start_time
 
@@ -145,11 +138,14 @@ class BBombsBot(lightbulb.BotApp):
     def auto_mod(self) -> AutoMod:
         """The auto moderator of the bot."""
         if self._auto_mod is None:
-            raise ApplicationStateError(
-                "Bot auto_mod is unavailable until bot has started."
-            )
+            raise ApplicationStateError("Bot auto_mod is unavailable until bot has started.")
 
         return self._auto_mod
+
+    @property
+    def mod(self) -> Moderator:
+        """The moderator of the bot."""
+        return self._mod
 
     def run(self) -> None:
         """Start listeners and bot activity."""
@@ -161,9 +157,7 @@ class BBombsBot(lightbulb.BotApp):
         self.subscribe(hikari.GuildLeaveEvent, self.on_guild_leave)
         self.subscribe(hikari.StoppedEvent, self.on_stop)
 
-        super().run(
-            activity=hikari.Activity(name="you ;)", type=hikari.ActivityType.WATCHING)
-        )
+        super().run(activity=hikari.Activity(name="you ;)", type=hikari.ActivityType.WATCHING))
 
     async def get_slash_context(
         self,
@@ -186,9 +180,7 @@ class BBombsBot(lightbulb.BotApp):
         await self.db.connect()
         await self.db.migrate_schema()
 
-        self.load_extensions_from(
-            os.path.join(self.base_dir, "src", "extensions"), must_exist=True
-        )
+        self.load_extensions_from(os.path.join(self.base_dir, "src", "extensions"), must_exist=True)
 
     async def on_started(self, event: hikari.StartedEvent) -> None:
         user = self.get_me()
@@ -223,9 +215,7 @@ class BBombsBot(lightbulb.BotApp):
                     guild,
                 )
 
-        logger.info(
-            f"Bot initialised as {self.get_me()} in {len(self._startup_guilds)} guilds"
-        )
+        logger.info(f"Bot initialised as {self.get_me()} in {len(self._startup_guilds)} guilds")
 
         self._startup_guilds = []
 

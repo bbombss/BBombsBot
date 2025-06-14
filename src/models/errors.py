@@ -6,6 +6,10 @@ class DatabaseStateError(Exception):
     """Exception raised when the database is not ready to receive a particular instruction in its current state."""
 
 
+class DirectMessageFailedError(Exception):
+    """Exception raised when the database is not ready to receive a particular instruction in its current state."""
+
+
 # Copyright (C) 2025 BBombs
 
 # This program is free software: you can redistribute it and/or modify

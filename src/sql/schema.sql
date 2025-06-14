@@ -17,10 +17,11 @@ CREATE TABLE IF NOT EXISTS guilds
     PRIMARY KEY (guildId)
 );
 
-CREATE TABLE IF NOT EXISTS users
+CREATE TABLE IF NOT EXISTS members
 (
     userId bigint NOT NULL,
     guildId bigint NOT NULL,
+    strikes bigint,
     PRIMARY KEY (userId, guildId),
     FOREIGN KEY (guildId) REFERENCES guilds (guildId)
         ON DELETE CASCADE

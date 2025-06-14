@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 import importlib
 import logging
 import os
@@ -32,9 +33,10 @@ class Database:
         self._pool: asyncpg.Pool | None = None
         self._pool_closed: bool = False
         self._schema_version: int
-        self._migrations_dir: str = os.path.join(
-            self._app.base_dir, "src", "sql", "migrations"
-        )
+        self._migrations_dir: str = os.path.join(self._app.base_dir, "src", "sql", "migrations")
+
+        DatabaseModel._db = self
+        DatabaseModel._app = self.app
 
     @property
     def app(self) -> BBombsBot:
@@ -91,9 +93,7 @@ class Database:
 
         self._pool = await asyncpg.create_pool(dsn=self.dsn)
         await self.compile_schema()
-        self._schema_version = await self.pool.fetchval(
-            "SELECT schemaVersion FROM databaseSchema", column=0
-        )
+        self._schema_version = await self.pool.fetchval("SELECT schemaVersion FROM databaseSchema", column=0)
 
     async def execute(self, query: str, *args) -> str:
         """Execute a command on the database server.
@@ -173,9 +173,7 @@ class Database:
         """Create necessary database tables if not already present."""
         async with (
             self.pool.acquire() as con,
-            aiofiles.open(
-                os.path.join(self._app.base_dir, "src", "sql", "schema.sql")
-            ) as f,
+            aiofiles.open(os.path.join(self._app.base_dir, "src", "sql", "schema.sql")) as f,
         ):
             await con.execute(await f.read())
 
@@ -213,9 +211,7 @@ class Database:
         await self.compile_schema()
 
         async with self.pool.acquire() as con:
-            version = await con.fetchval(
-                "SELECT schemaVersion FROM databaseSchema", column=0
-            )
+            version = await con.fetchval("SELECT schemaVersion FROM databaseSchema", column=0)
             if not isinstance(version, int):
                 raise ValueError(f"Expected int for schema version, not {version}")
 
@@ -230,9 +226,7 @@ class Database:
                         await self.do_python_migration(file)
 
             except ValueError:
-                logger.warning(
-                    "Migration filenames must include a version e.g. 'migration_1.sql'"
-                )
+                logger.warning("Migration filenames must include a version e.g. 'migration_1.sql'")
 
     async def add_guild(self, guild: hikari.Snowflake) -> None:
         """Add a new guild to the database (does nothing on conflict).
@@ -275,6 +269,11 @@ class Database:
 
         self.pool.terminate()
         self._pool_closed = True
+
+
+class DatabaseModel(abc.ABC):
+    _db: Database
+    _app: BBombsBot
 
 
 # Copyright (C) 2025 BBombs

@@ -20,7 +20,9 @@ SUCCESS_EMOJI: str = "<:confirm:1219174344203436042>"
 FAIL_EMOJI: str = "<:cancel:1219185372710572092>"
 LOADING_EMOJI: str = "<a:loading:1220563982499451042>"
 
-INVITE_LINK_TEMPLATE: str = "https://discord.com/oauth2/authorize?client_id={}&permissions=1099914800342&scope=bot+applications.commands"
+INVITE_LINK_TEMPLATE: str = (
+    "https://discord.com/oauth2/authorize?client_id={}&permissions=1099914800342&scope=bot+applications.commands"
+)
 
 
 # Copyright (C) 2025 BBombs

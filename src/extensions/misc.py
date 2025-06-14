@@ -5,7 +5,11 @@ import hikari
 import lightbulb
 import psutil
 
-from src.models import BBombsBot, BBombsBotPlugin, BBombsBotSlashContext
+from src.models import (
+    BBombsBot,
+    BBombsBotPlugin,
+    BBombsBotSlashContext,
+)
 from src.static.const import *
 
 misc = BBombsBotPlugin("misc")
@@ -35,7 +39,7 @@ async def bot_info(ctx: BBombsBotSlashContext) -> None:
     await ctx.edit_last_response(
         "",
         embed=hikari.Embed(
-            title=f"⌛️ {me.username} Info",
+            title=f"{me.username} Info",
             description=f"""Version: **{ctx.app.version}**
 Developer: **BBombs**
 Server Count: **{len(ctx.app.cache.get_guilds_view())}**

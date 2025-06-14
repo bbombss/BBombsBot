@@ -13,9 +13,7 @@ if t.TYPE_CHECKING:
 from src.static.re import *
 
 
-def has_permissions(
-    member: hikari.Member, perms: hikari.Permissions, strict: bool = True
-) -> bool:
+def has_permissions(member: hikari.Member, perms: hikari.Permissions, strict: bool = True) -> bool:
     """Will return true if a member has specified permissions.
 
     Parameters
@@ -86,9 +84,7 @@ def can_mod(member: hikari.Member, bot: hikari.Member) -> bool:
     if higher_role(member, bot):
         return False
 
-    perms: hikari.Permissions = (
-        hikari.Permissions.ADMINISTRATOR | hikari.Permissions.MANAGE_GUILD
-    )
+    perms: hikari.Permissions = hikari.Permissions.ADMINISTRATOR | hikari.Permissions.MANAGE_GUILD
 
     return not has_permissions(member, perms, strict=False)
 

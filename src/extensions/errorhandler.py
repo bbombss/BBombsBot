@@ -104,8 +104,13 @@ async def application_command_error_handler(event: lightbulb.CommandErrorEvent) 
         return
 
     if isinstance(error, lightbulb.OnlyInGuild):
+        await ctx.respond_with_failure("**This command can only be used within a server**", ephemeral=True)
+        return
+
+    if isinstance(error, lightbulb.NotOwner):
         await ctx.respond_with_failure(
-            "**This command can only be used within a server**", ephemeral=True
+            "**You are not allowed to do this**",
+            ephemeral=True,
         )
         return
 
@@ -135,9 +140,7 @@ async def application_command_error_handler(event: lightbulb.CommandErrorEvent) 
             await ctx.respond_with_failure("**Command timed out**", edit=True)
             return
 
-    logger.error(
-        f"Ignoring exception in {ctx.guild_id} /{ctx.command.name} -> {error.__class__.__name__}: {error}"
-    )
+    logger.error(f"Ignoring exception in {ctx.guild_id} /{ctx.command.name} -> {error.__class__.__name__}: {error}")
 
     error = error.original if hasattr(error, "original") else error  # type: ignore
 
@@ -155,9 +158,7 @@ This has been automatically logged, contact the bot administrator or raise an is
         .set_footer(str(ctx.guild_id))
     )
 
-    error_str = "\n".join(
-        traceback.format_exception(type(error), error, error.__traceback__)
-    )
+    error_str = "\n".join(traceback.format_exception(type(error), error, error.__traceback__))
 
     await log_error(error_str, ctx=ctx)
 
@@ -178,17 +179,11 @@ async def prefix_command_error_handler(event: lightbulb.PrefixCommandErrorEvent)
     ctx: BBombsBotContext = event.context
     assert ctx.command is not None
 
-    logger.error(
-        f"Ignoring exception in prefix command {ctx.command.name} -> {error.__class__.__name__}: {error}"
-    )
+    logger.error(f"Ignoring exception in prefix command {ctx.command.name} -> {error.__class__.__name__}: {error}")
 
-    await ctx.respond_with_failure(
-        f"**Uncaught exception:**\n\n```{error.__class__.__name__}: {error}```", edit=True
-    )
+    await ctx.respond_with_failure(f"**Uncaught exception:**\n\n```{error.__class__.__name__}: {error}```", edit=True)
 
-    error_str = "\n".join(
-        traceback.format_exception(type(error), error, error.__traceback__)
-    )
+    error_str = "\n".join(traceback.format_exception(type(error), error, error.__traceback__))
 
     await log_error(error_str, ctx)
 
@@ -197,9 +192,7 @@ async def prefix_command_error_handler(event: lightbulb.PrefixCommandErrorEvent)
 async def event_error_handler(event: hikari.ExceptionEvent) -> None:
     error_str = "\n".join(traceback.format_exception(*event.exc_info))
 
-    logger.error(
-        f"Ignoring exception in event listener {event.failed_event.__class__.__name__}:"
-    )
+    logger.error(f"Ignoring exception in event listener {event.failed_event.__class__.__name__}:")
     print(error_str)
 
     await log_error(error_str, event=event)

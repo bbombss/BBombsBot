@@ -161,9 +161,7 @@ class SafebrowsingClient:
             },
         }
 
-        async with self._session.request(
-            "POST", LOOKUP_API_URL.format(key=self.api_key), json=request_body
-        ) as resp:
+        async with self._session.request("POST", LOOKUP_API_URL.format(key=self.api_key), json=request_body) as resp:
             if resp.status == 200:
                 response = await resp.json()
                 return response

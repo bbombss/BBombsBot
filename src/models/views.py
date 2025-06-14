@@ -12,7 +12,7 @@ class AuthorOnlyView(miru.View):
 
     def __init__(
         self,
-        lightbulb_ctx: lightbulb.Context,
+        lightbulb_ctx: lightbulb.Context | None,
         *,
         timeout: float = 120,
         autodefer: bool = True,
@@ -21,8 +21,9 @@ class AuthorOnlyView(miru.View):
 
         Parameters
         ----------
-        lightbulb_ctx : lightbulb.Context
+        lightbulb_ctx : lightbulb.Context | None
             The lightbulb context object, to determine original author.
+            If no context is provided the view will be interactable by any user.
         timeout : float
             Timeout for view, defaults to 120.
         autodefer : bool
@@ -33,7 +34,7 @@ class AuthorOnlyView(miru.View):
         self.lightbulb_ctx = lightbulb_ctx
 
     async def view_check(self, ctx: miru.ViewContext) -> bool:
-        if ctx.user.id != self.lightbulb_ctx.author.id:
+        if self.lightbulb_ctx and ctx.user.id != self.lightbulb_ctx.author.id:
             await ctx.respond(
                 embed=hikari.Embed(
                     title=None,
@@ -71,9 +72,7 @@ class NavView(miru.View):
         """
         super().__init__(timeout=timeout, autodefer=autodefer)
         if not isinstance(pages, list) or len(pages) < 2:
-            raise ValueError(
-                f"Expected list of at least 2 elements for {type(self).__name__}"
-            )
+            raise ValueError(f"Expected list of at least 2 elements for {type(self).__name__}")
 
         self.pages = pages
         self._current_page = 0
@@ -89,9 +88,7 @@ class NavView(miru.View):
         embeds = [page] if isinstance(page, hikari.Embed) else []
 
         if content == "" and embeds == []:
-            raise TypeError(
-                f"Expected list of embeds or strings for {type(self).__name__}"
-            )
+            raise TypeError(f"Expected list of embeds or strings for {type(self).__name__}")
 
         payload = {
             "content": content,
@@ -208,7 +205,7 @@ class ConfirmationView(AuthorOnlyView):
 
     def __init__(
         self,
-        lightbulb_ctx: lightbulb.Context,
+        lightbulb_ctx: lightbulb.Context | None,
         timeout: float = 120,
         confirm_msg: dict[str, t.Any] | None = None,
         cancel_msg: dict[str, t.Any] | None = None,
@@ -217,8 +214,8 @@ class ConfirmationView(AuthorOnlyView):
 
         Parameters
         ----------
-        lightbulb_ctx : lightbulb.Context
-            The lightbulb context object, to determine original author.
+        lightbulb_ctx : lightbulb.Context | None
+            The lightbulb context object, if provided makes the view author only.
         timeout : float
             Timeout for view, defaults to 120.
         confirm_msg : dict[str, t.Any] | None
@@ -232,12 +229,23 @@ class ConfirmationView(AuthorOnlyView):
         self.cancel_msg = cancel_msg
         self.value: bool
 
-    @miru.button(emoji="✔️", style=hikari.ButtonStyle.SUCCESS)
-    async def confirm_button(self, ctx: miru.ViewContext, button: miru.Button) -> None:
-        self.value = True
+    async def deactivate(self, ctx: miru.ViewContext) -> None:
+        """Deactivate the view by disabling all buttons."""
         for item in self.children:
             item.disabled = True
         await ctx.edit_response(components=self)
+
+    async def on_timeout(self) -> None:
+        if self.message:
+            for item in self.children:
+                item.disabled = True
+            await self.message.edit(components=self)
+        self.stop()
+
+    @miru.button(emoji="✔️", style=hikari.ButtonStyle.SUCCESS)
+    async def confirm_button(self, ctx: miru.ViewContext, button: miru.Button) -> None:
+        self.value = True
+        await self.deactivate(ctx)
 
         if self.confirm_msg:
             await ctx.respond(**self.confirm_msg)
@@ -246,12 +254,73 @@ class ConfirmationView(AuthorOnlyView):
     @miru.button(emoji="❌", style=hikari.ButtonStyle.SECONDARY)
     async def cancel_button(self, ctx: miru.ViewContext, button: miru.Button) -> None:
         self.value = False
+        await self.deactivate(ctx)
+
+        if self.cancel_msg:
+            await ctx.respond(**self.cancel_msg)
+        self.stop()
+
+
+class RatingView(miru.View):
+    """View for prompting a rating from 1-5."""
+
+    def __init__(
+        self,
+        timeout: float = 120,
+    ):
+        """View for prompting a rating from 1-5.
+
+        Parameters
+        ----------
+        timeout : float
+            Timeout for view, defaults to 120.
+
+        """
+        super().__init__(timeout=timeout)
+        self.rating: int
+
+    async def deactivate(self, ctx: miru.ViewContext) -> None:
+        """Deactivate the view by disabling all buttons."""
         for item in self.children:
             item.disabled = True
         await ctx.edit_response(components=self)
 
-        if self.cancel_msg:
-            await ctx.respond(**self.cancel_msg)
+    async def on_timeout(self) -> None:
+        if self.message:
+            for item in self.children:
+                item.disabled = True
+            await self.message.edit(components=self)
+        self.rating = None
+        self.stop()
+
+    @miru.button("1", style=hikari.ButtonStyle.DANGER)
+    async def rate_1(self, ctx: miru.ViewContext, button: miru.Button) -> None:
+        self.rating = 1
+        await self.deactivate(ctx)
+        self.stop()
+
+    @miru.button("2", style=hikari.ButtonStyle.PRIMARY)
+    async def rate_2(self, ctx: miru.ViewContext, button: miru.Button) -> None:
+        self.rating = 2
+        await self.deactivate(ctx)
+        self.stop()
+
+    @miru.button("3", style=hikari.ButtonStyle.PRIMARY)
+    async def rate_3(self, ctx: miru.ViewContext, button: miru.Button) -> None:
+        self.rating = 3
+        await self.deactivate(ctx)
+        self.stop()
+
+    @miru.button("4", style=hikari.ButtonStyle.PRIMARY)
+    async def rate_4(self, ctx: miru.ViewContext, button: miru.Button) -> None:
+        self.rating = 4
+        await self.deactivate(ctx)
+        self.stop()
+
+    @miru.button("5", style=hikari.ButtonStyle.SUCCESS)
+    async def rate_5(self, ctx: miru.ViewContext, button: miru.Button) -> None:
+        self.rating = 5
+        await self.deactivate(ctx)
         self.stop()
 
 

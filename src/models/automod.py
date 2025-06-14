@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import enum
 import os
 import typing as t
@@ -11,6 +12,7 @@ from Levenshtein import distance
 if t.TYPE_CHECKING:
     from src.models.bot import BBombsBot
 
+from src.models.database_member import DatabaseMember
 from src.models.ratelimiter import MessageRateLimiter
 from src.models.safebrowsing import SafebrowsingClient
 from src.static.re import *
@@ -55,9 +57,7 @@ class AutoMod:
     def __init__(self, app: BBombsBot) -> None:
         self._app: BBombsBot = app
         self._lists_dir: str = os.path.join(app.base_dir, "src", "static", "lists")
-        self._safebrowsing_client = SafebrowsingClient(
-            app.config.SAFEBROWSING_TOKEN, "bbombsbot", "0.1.1"
-        )
+        self._safebrowsing_client = SafebrowsingClient(app.config.SAFEBROWSING_TOKEN, "bbombsbot", "0.1.1")
 
     @property
     def app(self) -> BBombsBot:
@@ -102,6 +102,7 @@ class AutoMod:
         offence: AutoModOffenceType,
         media: AutoModMediaType,
         reason: str,
+        message_queue: list[hikari.Snowflake] | None = None,
     ) -> None:
         """Carry out the suitable moderation action for the offending message.
 
@@ -115,12 +116,40 @@ class AutoMod:
             The type of media that caused this offence.
         reason : str
             The reason this message is being moderated.
+        message_queue : list[hikari.Snowflake] | None
+            Message queue to be deleted for spam offences, optional.
 
         """
+        offender = self.app.cache.get_member(message.guild_id, message.author.id)
+        guild = offender.get_guild()
+        db_member = await DatabaseMember.fetch(offender.id, offender.guild_id)
+
         with suppress(hikari.NotFoundError):
             await message.delete()
+            if message_queue:
+                await self.app.rest.delete_messages(message.channel_id, message_queue)
 
-        # ...
+        if db_member.strikes < 4 and offence == AutoModOffenceType.BLOCKED:
+            db_member.strikes += 1
+            await db_member.update()
+            await self.app.mod.notice(
+                offender,
+                guild,
+                f"""Message removed because it violates a moderation policy: **{reason}**
+Continued violation may result in further action.""",
+            )
+            return
+
+        if db_member.strikes < 4 and offence == AutoModOffenceType.SPAM:
+            db_member.strikes += 1
+            await db_member.update()
+
+            timeout = 10**db_member.strikes
+            duration = datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=timeout)
+
+            await self.app.mod.timeout(offender, guild, duration, reason)
+
+            return
 
     async def find_message_spam(self, message: hikari.PartialMessage) -> bool:
         """Check for common types of spam.
@@ -130,9 +159,8 @@ class AutoMod:
         MESSAGE_SPAM_RATELIMITER.add_message(message)
         if MESSAGE_SPAM_RATELIMITER.is_rate_limited(message):
             reason = "sending messages too frequently."
-            await self.moderate(
-                message, AutoModOffenceType.SPAM, AutoModMediaType.MESSAGE, reason
-            )
+            queue = MESSAGE_SPAM_RATELIMITER.get_messages(message)
+            await self.moderate(message, AutoModOffenceType.SPAM, AutoModMediaType.MESSAGE, reason, message_queue=queue)
             return False
 
         return True
@@ -157,9 +185,10 @@ class AutoMod:
             DUPLICATE_SPAM_RATELIMITER.add_message(message)
 
             if DUPLICATE_SPAM_RATELIMITER.is_rate_limited(message):
+                queue = DUPLICATE_SPAM_RATELIMITER.get_messages(message)
                 reason = "sending consecutive copied and pasted messages."
                 await self.moderate(
-                    message, AutoModOffenceType.SPAM, AutoModMediaType.DUPLICATE, reason
+                    message, AutoModOffenceType.SPAM, AutoModMediaType.DUPLICATE, reason, message_queue=queue
                 )
                 return False
 
@@ -175,9 +204,8 @@ class AutoMod:
 
         if INVITE_SPAM_RATELIMITER.is_rate_limited(message):
             reason = "sending discord invites too frequently."
-            await self.moderate(
-                message, AutoModOffenceType.SPAM, AutoModMediaType.INVITE, reason
-            )
+            queue = INVITE_SPAM_RATELIMITER.get_messages(message)
+            await self.moderate(message, AutoModOffenceType.SPAM, AutoModMediaType.INVITE, reason, message_queue=queue)
             return False
 
         return True
@@ -192,9 +220,8 @@ class AutoMod:
 
         if LINK_SPAM_RATELIMITER.is_rate_limited(message):
             reason = "sending links too frequently."
-            await self.moderate(
-                message, AutoModOffenceType.SPAM, AutoModMediaType.LINK, reason
-            )
+            queue = LINK_SPAM_RATELIMITER.get_messages(message)
+            await self.moderate(message, AutoModOffenceType.SPAM, AutoModMediaType.LINK, reason, message_queue=queue)
             return False
 
         return True
@@ -209,8 +236,9 @@ class AutoMod:
 
         if ATTACHMENT_SPAM_RATELIMITER.is_rate_limited(message):
             reason = "sending attachments too frequently."
+            queue = ATTACHMENT_SPAM_RATELIMITER.get_messages(message)
             await self.moderate(
-                message, AutoModOffenceType.SPAM, AutoModMediaType.ATTACHMENT, reason
+                message, AutoModOffenceType.SPAM, AutoModMediaType.ATTACHMENT, reason, message_queue=queue
             )
             return False
 
@@ -231,10 +259,9 @@ class AutoMod:
             MENTION_SPAM_RATELIMITER.add_message(message)
 
         if MENTION_SPAM_RATELIMITER.is_rate_limited(message):
+            queue = MENTION_SPAM_RATELIMITER.get_messages(message)
             reason = "mentioning users too frequently."
-            await self.moderate(
-                message, AutoModOffenceType.SPAM, AutoModMediaType.MENTION, reason
-            )
+            await self.moderate(message, AutoModOffenceType.SPAM, AutoModMediaType.MENTION, reason, message_queue=queue)
             return False
 
         return True
@@ -246,9 +273,7 @@ class AutoMod:
         """
         if BLOCK_INVITES and message.content and INVITE_REGEX.findall(message.content):
             reason = "invite links are not allowed."
-            await self.moderate(
-                message, AutoModOffenceType.BLOCKED, AutoModMediaType.INVITE, reason
-            )
+            await self.moderate(message, AutoModOffenceType.BLOCKED, AutoModMediaType.INVITE, reason)
             return False
 
         return True
@@ -280,9 +305,7 @@ class AutoMod:
 
         for match in refined_matches:
             if await domain_in_list("".join(match), blacklist):
-                await self.moderate(
-                    message, AutoModOffenceType.BLOCKED, AutoModMediaType.LINK, reason
-                )
+                await self.moderate(message, AutoModOffenceType.BLOCKED, AutoModMediaType.LINK, reason)
                 return False
 
         urls = ["".join(match) for match in refined_matches]
@@ -290,9 +313,7 @@ class AutoMod:
         results = await self.safebrowsing_client.check(urls)
 
         if any(result.status == "unsafe" for result in results):
-            await self.moderate(
-                message, AutoModOffenceType.BLOCKED, AutoModMediaType.LINK, reason
-            )
+            await self.moderate(message, AutoModOffenceType.BLOCKED, AutoModMediaType.LINK, reason)
             return False
 
         return True
@@ -304,9 +325,7 @@ class AutoMod:
         """
         if BLOCK_FAKE_URL and message.content and FAKE_URL_REGEX.findall(message.content):
             reason = "hyperlink contains link as text string."
-            await self.moderate(
-                message, AutoModOffenceType.BLOCKED, AutoModMediaType.HYPERLINK, reason
-            )
+            await self.moderate(message, AutoModOffenceType.BLOCKED, AutoModMediaType.HYPERLINK, reason)
             return False
 
         return True
@@ -319,23 +338,16 @@ class AutoMod:
         assert message.author
 
         if mentions := message.user_mentions:
-            count = sum(
-                mention.id != message.author.id and not mention.is_bot
-                for mention in mentions.values()
-            )
+            count = sum(mention.id != message.author.id and not mention.is_bot for mention in mentions.values())
 
             if count > MENTION_FILTER_LIMIT:
                 reason = "message contains too many consecutive mentions."
-                await self.moderate(
-                    message, AutoModOffenceType.BLOCKED, AutoModMediaType.MENTION, reason
-                )
+                await self.moderate(message, AutoModOffenceType.BLOCKED, AutoModMediaType.MENTION, reason)
                 return False
 
         return True
 
-    async def check(
-        self, event: hikari.GuildMessageUpdateEvent | hikari.GuildMessageCreateEvent
-    ) -> None:
+    async def check(self, event: hikari.GuildMessageUpdateEvent | hikari.GuildMessageCreateEvent) -> None:
         """Run automod checks on created or updated messages.
 
         Parameters
@@ -359,8 +371,8 @@ class AutoMod:
         if not member or member.is_bot:
             return
 
-        if not self.can_automod(member, bot):
-            return
+        # if not self.can_automod(member, bot):
+        #     return
 
         if isinstance(event, hikari.GuildMessageCreateEvent):
             all(

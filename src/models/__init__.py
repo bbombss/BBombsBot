@@ -1,5 +1,6 @@
 from .bot import *
 from .context import *
+from .database_member import *
 from .errors import *
 from .plugin import *
 from .views import *

@@ -60,7 +60,7 @@ class BBombsBotContext(lightbulb.Context, ABC):
             colour=SUCCESS_EMBED_COLOUR,
         )
 
-        flags = hikari.MessageFlag.EPHEMERAL if ephemeral else hikari.UNDEFINED
+        flags = hikari.MessageFlag.EPHEMERAL if ephemeral else hikari.MessageFlag.NONE
 
         assert self.previous_response is not None
 
@@ -101,7 +101,7 @@ class BBombsBotContext(lightbulb.Context, ABC):
             colour=FAIL_EMBED_COLOUR,
         )
 
-        flags = hikari.MessageFlag.EPHEMERAL if ephemeral else hikari.UNDEFINED
+        flags = hikari.MessageFlag.EPHEMERAL if ephemeral else hikari.MessageFlag.NONE
 
         assert self.previous_response is not None
 
@@ -155,9 +155,7 @@ class BBombsBotContext(lightbulb.Context, ABC):
         await view.wait()
         return view.value
 
-    async def respond_paginated(
-        self, pages: list[str], timeout: float = 360, edit: bool = False, **kwargs
-    ) -> None:
+    async def respond_paginated(self, pages: list[str], timeout: float = 360, edit: bool = False, **kwargs) -> None:
         """Generate a paginated menu as embeds.
 
         Parameters
@@ -189,9 +187,7 @@ class BBombsBotContext(lightbulb.Context, ABC):
         navigator = AuthorOnlyNavView(self, embed_pages, timeout=timeout)
 
         if edit:
-            message = await self.edit_last_response(
-                "", embeds=[embed_pages[0]], component=navigator
-            )
+            message = await self.edit_last_response("", embeds=[embed_pages[0]], component=navigator)
         if message is None:
             resp = await self.respond("", embeds=[embed_pages[0]], components=navigator)
             message = await resp.message()

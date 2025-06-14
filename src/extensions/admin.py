@@ -50,9 +50,7 @@ async def respond_paginated(
         await ctx.edit_last_response("", embed=embed)
         return
 
-    paginator = lightbulb.utils.StringPaginator(
-        prefix=prefix, suffix=suffix, max_chars=2000
-    )
+    paginator = lightbulb.utils.StringPaginator(prefix=prefix, suffix=suffix, max_chars=2000)
 
     for line in content.split("\n"):
         paginator.add_line(line)
@@ -74,13 +72,9 @@ async def handle_exception(ctx, error: Exception) -> None:
 
     """
     title = f"{FAIL_EMOJI} {error.__class__.__name__}: {error}"
-    content = "\n".join(
-        traceback.format_exception(type(error), error, error.__traceback__)
-    )
+    content = "\n".join(traceback.format_exception(type(error), error, error.__traceback__))
 
-    await respond_paginated(
-        ctx, content, "```py\n", "```", title=title, colour=FAIL_EMBED_COLOUR
-    )
+    await respond_paginated(ctx, content, "```py\n", "```", title=title, colour=FAIL_EMBED_COLOUR)
 
 
 @admin.command
@@ -136,15 +130,11 @@ async def eval_sql(ctx: BBombsBotPrefixContext, code: str) -> None:
     elif code:
         sql = code.replace("```sql", "").replace("`", "").strip()
     else:
-        await ctx.respond_with_failure(
-            "**Could not find attached file or sql in message**", edit=True
-        )
+        await ctx.respond_with_failure("**Could not find attached file or sql in message**", edit=True)
         return
 
     output = await ctx.app.db.execute(sql)
-    await ctx.respond_with_success(
-        f"**SQL command executed:**\n\n```{output}```", edit=True
-    )
+    await ctx.respond_with_success(f"**SQL command executed:**\n\n```{output}```", edit=True)
 
 
 @admin.command
@@ -204,9 +194,7 @@ async def eval_python(ctx: BBombsBotPrefixContext, code: str) -> None:
             colour=SUCCESS_EMBED_COLOUR,
         )
     else:
-        await ctx.respond_with_success(
-            f"**Evaluated successfully** ({exec_time})", edit=True
-        )
+        await ctx.respond_with_success(f"**Evaluated successfully** ({exec_time})", edit=True)
 
 
 @admin.command()
